@@ -1,0 +1,177 @@
+openapi: 3.0.4
+info:
+  title: pagos-v1
+  version: '1.0'
+  description: API para la gestión de pagos mediante OAuth2
+  contact:
+    name: Equipo de Desarrollo
+    email: soporte@ejemplo.com
+servers:
+  - url: https://api.gateway.com/v1
+    description: Servidor de producción
+tags:
+  - name: Pagos
+    description: Operaciones relacionadas con la gestión de pagos
+paths:
+  /initiate:
+    post:
+      operationId: initiatePayment
+      summary: Iniciar nuevo pago
+      description: Registra una nueva transacción de pago en el sistema.
+      tags:
+        - Pagos
+      security:
+        - oauth2:
+            - pagos:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '200':
+          description: Pago iniciado correctamente
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /status/{paymentId}:
+    get:
+      operationId: getStatus
+      summary: Consultar estado de pago
+      description: Retorna el estado actual de un pago según su ID.
+      tags:
+        - Pagos
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - oauth2:
+            - pagos:read
+      responses:
+        '200':
+          description: Estado recuperado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatus'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /cancel/{paymentId}:
+    delete:
+      operationId: cancelPayment
+      summary: Cancelar pago
+      description: Anula una transacción pendiente o activa.
+      tags:
+        - Pagos
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      security:
+        - oauth2:
+            - pagos:write
+      responses:
+        '200':
+          description: Pago cancelado correctamente
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://tu-gateway/token
+          scopes:
+            pagos:read: Permiso para leer estados de pago
+            pagos:write: Permiso para crear o cancelar pagos
+  schemas:
+    PaymentRequest:
+      type: object
+      required:
+        - cuentaOrigen
+        - cuentaDestino
+        - monto
+        - moneda
+        - concepto
+      properties:
+        cuentaOrigen:
+          type: string
+          example: '001123456789'
+        cuentaDestino:
+          type: string
+          example: '001987654321'
+        monto:
+          type: number
+          format: double
+          example: 150.5
+        moneda:
+          type: string
+          example: PEN
+          enum:
+            - PEN
+            - USD
+        concepto:
+          type: string
+          example: Pago de servicios
+    PaymentStatus:
+      type: object
+      properties:
+        paymentId:
+          type: string
+          example: PAY-123
+        estado:
+          type: string
+          example: APROBADO
+        fecha:
+          type: string
+          format: date-time
+          example: '2025-08-20T10:15:00Z'
+    ErrorResponse:
+      type: object
+      properties:
+        codigo:
+          type: string
+          example: '400'
+        mensaje:
+          type: string
+          example: Moneda inválida
+security:
+  - oauth2:
+      - pagos:read
+      - pagos:write

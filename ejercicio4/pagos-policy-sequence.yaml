@@ -1,0 +1,147 @@
+kind: DataPowerAssembly
+apiVersion: api.ibm.com/v1
+metadata:
+  name: pagos-policy-sequence
+  namespace: API_Pagos
+  version: '1.0'
+  tags: []
+  labels:
+    gatewayTypes:
+      - datapower
+spec:
+  x-ibm-configuration:
+    gateway: datapower-api-gateway
+    assembly:
+      execute:
+        - set-variable:
+            version: 2.0.0
+            title: set-variable
+            actions:
+              - set: log_body
+                value: $(request.body)
+                type: string
+              - set: log_client_id
+                value: $(api.client_id)
+                type: string
+        - gatewayscript:
+            version: 2.0.0
+            title: gatewayscript
+            source: "var body = apim.getvariable('request.body') || {};\r\nif (!body.moneda || (body.moneda !== 'PEN' && body.moneda !== 'USD')) {\r\n    apim.error('ValidationError', 400, 'Error de formato', 'La moneda es obligatoria y debe ser PEN o USD');\r\n}"
+        - invoke:
+            version: 2.3.0
+            title: invoke
+            backend-type: detect
+            header-control:
+              type: blocklist
+              values: []
+            parameter-control:
+              type: allowlist
+              values: []
+            http-version: HTTP/1.1
+            timeout: 60
+            verb: keep
+            chunked-uploads: true
+            persistent-connection: true
+            cache-response: protocol
+            cache-ttl: 900
+            websocket-upgrade: false
+            graphql-send-type: detect
+            target-url: http://localhost:7800/transferencia/validar
+        - map:
+            inputs:
+              input:
+                schema:
+                  type: object
+                  properties:
+                    X-Correlation-ID:
+                      type: string
+                    cuentaOrigen:
+                      type: string
+                    cuentaDestino:
+                      type: string
+                    monto:
+                      type: number
+                    moneda:
+                      type: string
+                    concepto:
+                      type: string
+                variable: request.body
+                content: application/json
+              input_1:
+                schema:
+                  type: object
+                  properties:
+                    X-Correlation-ID:
+                      type: string
+                variable: message.headers
+                content: application/json
+              input_2:
+                schema:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    estado:
+                      type: string
+                    fecha:
+                      type: string
+                variable: message.body
+                content: application/json
+            outputs:
+              output:
+                schema:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    estado:
+                      type: string
+                    fecha:
+                      type: string
+                    X-Correlation-ID:
+                      type: string
+                variable: message.body
+                content: application/json
+            actions:
+              - set: output.X-Correlation-ID
+                from: input_1.X-Correlation-ID
+              - set: output.fecha
+                from: input_2.fecha
+              - set: output.estado
+                from: input_2.estado
+              - set: output.id
+                from: input_2.id
+            version: 2.1.0
+            title: map
+            options:
+              mapEmulateV4EmptyJSONObject: false
+              mapEmulateV4DefaultRequiredProps: false
+              mapEnablePostProcessingJSON: false
+              mapReferenceLimit: 1
+        - log:
+            version: 2.1.0
+            title: log
+            log-level: Info
+            mode: gather-and-send
+      catch:
+        - errors:
+            - BadRequestError
+            - ConnectionError
+            - JavaScriptError
+            - RuntimeError
+            - TransformError
+            - ValidateError
+          execute:
+            - set-variable:
+                version: 2.0.0
+                title: set-variable
+                actions:
+                  - set: message.body
+                    value: >-
+                      {   "error": "Ocurrió un error inesperado",   "detalle":
+                      "Por favor, contacte con el soporte técnico",  
+                      "correlation-id": "$(request.headers.x-correlation-id)" }
+                    type: string
+    phase: realized
+    enforced: false
+    testable: false

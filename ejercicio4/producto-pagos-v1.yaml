@@ -1,0 +1,17 @@
+basic-accesskind: Product
+apiVersion: api.ibm.com/v1
+metadata:
+  name: producto-pagos-v1
+  namespace: API_Pagos
+  version: '1.0'
+  tags: []
+spec:
+  apis:
+    - $ref: apipagos:API_Pagos:1.0
+  plans:
+    - name: basic-access
+      title: basic-access
+      description: Plan de acceso con límite de 100 peticiones por hora.
+      approval: false
+      rate-limit:
+        value: 100/1hour
